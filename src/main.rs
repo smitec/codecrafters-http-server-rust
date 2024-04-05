@@ -53,6 +53,14 @@ fn main() {
                     version: parts.next().unwrap().to_string(),
                 };
 
+                // Handle the echo path.
+                if start_line.path.starts_with("/echo/") {
+                    let (_, response) = start_line.path.split_once("/echo/").unwrap();
+                    stream
+                        .write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length:{}\r\n\r\n{}", response.len(), response).as_bytes())
+                        .expect("Couldn't write bytes!");
+                }
+
                 match start_line.path.as_str() {
                     "/" => {
                         stream
