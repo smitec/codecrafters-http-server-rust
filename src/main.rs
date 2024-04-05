@@ -53,29 +53,27 @@ fn main() {
                     version: parts.next().unwrap().to_string(),
                 };
 
-                // Send back the user agent
-                for line in headers.split("\r\n") {
-                    if line.starts_with("User-Agent: ") {
-                        let (_, response) = line.split_once("User-Agent: ").unwrap();
-                        stream
-                        .write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length:{}\r\n\r\n{}", response.len(), response).as_bytes())
-                        .expect("Couldn't write bytes!");
-                        break;
-                    }
-                }
-
                 // Handle the echo path.
-                /*
                 if start_line.path.starts_with("/echo/") {
                     let (_, response) = start_line.path.split_once("/echo/").unwrap();
                     stream
                         .write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length:{}\r\n\r\n{}", response.len(), response).as_bytes())
                         .expect("Couldn't write bytes!");
                 }
-                */
 
-                /*
                 match start_line.path.as_str() {
+                    "/user-agent" => {
+                        // Send back the user agent
+                        for line in headers.split("\r\n") {
+                            if line.starts_with("User-Agent: ") {
+                                let (_, response) = line.split_once("User-Agent: ").unwrap();
+                                stream
+                        .write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length:{}\r\n\r\n{}", response.len(), response).as_bytes())
+                        .expect("Couldn't write bytes!");
+                                break;
+                            }
+                        }
+                    }
                     "/" => {
                         stream
                             .write_all("HTTP/1.1 200 OK\r\n\r\n".as_bytes())
@@ -87,7 +85,6 @@ fn main() {
                             .expect("Couldn't write bytes!");
                     }
                 }
-                */
             }
             Err(e) => {
                 println!("error: {}", e);
