@@ -43,7 +43,7 @@ fn main() {
 
                 let content = std::str::from_utf8(&buffer).unwrap().to_string();
 
-                let (start_line, _other) = content.split_once("\r\n").unwrap();
+                let (start_line, headers) = content.split_once("\r\n").unwrap();
                 let mut parts = start_line.splitn(3, ' ');
 
                 // TODO: less lazy error handling
@@ -53,13 +53,26 @@ fn main() {
                     version: parts.next().unwrap().to_string(),
                 };
 
+                // Send back the user agent
+                for line in headers.split("\r\n") {
+                    if line.starts_with("User-Agent: ") {
+                        let (_, response) = line.split_once("User-Agent: ").unwrap();
+                        stream
+                        .write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length:{}\r\n\r\n{}", response.len(), response).as_bytes())
+                        .expect("Couldn't write bytes!");
+                        break;
+                    }
+                }
+
                 // Handle the echo path.
+                /*
                 if start_line.path.starts_with("/echo/") {
                     let (_, response) = start_line.path.split_once("/echo/").unwrap();
                     stream
                         .write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length:{}\r\n\r\n{}", response.len(), response).as_bytes())
                         .expect("Couldn't write bytes!");
                 }
+                */
 
                 match start_line.path.as_str() {
                     "/" => {
