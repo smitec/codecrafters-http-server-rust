@@ -74,6 +74,7 @@ fn main() {
                 }
                 */
 
+                /*
                 match start_line.path.as_str() {
                     "/" => {
                         stream
@@ -86,6 +87,7 @@ fn main() {
                             .expect("Couldn't write bytes!");
                     }
                 }
+                */
             }
             Err(e) => {
                 println!("error: {}", e);
