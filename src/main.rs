@@ -1,9 +1,11 @@
 use std::env;
+use std::io::Write;
 use std::sync::Arc;
 use std::{fs::File, io::Read};
 
 use anyhow::Result;
 
+use nom::AsBytes;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -11,11 +13,13 @@ use tokio::{
 
 enum HttpMethod {
     GET,
+    POST,
 }
 
 fn parse_method(content: &str) -> Option<HttpMethod> {
     match content {
         "GET" => Some(HttpMethod::GET),
+        "POST" => Some(HttpMethod::POST),
         _ => None,
     }
 }
@@ -33,15 +37,14 @@ async fn handle_connection(
     // Read from the stream.
     let mut buffer = [0_u8; 4096];
 
-    // TODO: Partial reads?
     let read = stream.read(&mut buffer).await?;
 
-    let content = std::str::from_utf8(&buffer).unwrap().to_string();
+    let content = std::str::from_utf8(&buffer[0..read]).unwrap().to_string();
 
     let (start_line, headers) = content.split_once("\r\n").unwrap();
+    let (headers, body) = headers.split_once("\r\n\r\n").unwrap();
     let mut parts = start_line.splitn(3, ' ');
 
-    // TODO: less lazy error handling
     let start_line = StartLine {
         method: parse_method(parts.next().unwrap()).unwrap(),
         path: parts.next().unwrap().to_string(),
@@ -51,13 +54,15 @@ async fn handle_connection(
     // Handle the files path.
     if start_line.path.starts_with("/files/") {
         let (_, filename) = start_line.path.split_once("/files/").unwrap();
-        let file = File::open(format!("{}/{}", directory, filename));
+        match start_line.method {
+            HttpMethod::GET => {
+                let file = File::open(format!("{}/{}", directory, filename));
 
-        match file {
-            Ok(mut file) => {
-                let mut s = String::new();
-                file.read_to_string(&mut s)?;
-                stream
+                match file {
+                    Ok(mut file) => {
+                        let mut s = String::new();
+                        file.read_to_string(&mut s)?;
+                        stream
                 .write_all(
                     format!(
                         "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length:{}\r\n\r\n{}",
@@ -68,10 +73,20 @@ async fn handle_connection(
                 )
                 .await
                 .expect("Couldn't write bytes!");
+                    }
+                    Err(_) => {
+                        stream
+                            .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
+                            .await
+                            .expect("Couldn't write bytes!");
+                    }
+                }
             }
-            Err(_) => {
+            HttpMethod::POST => {
+                let mut file = File::create(format!("{}/{}", directory, filename)).unwrap();
+                file.write_all(body.as_bytes()).unwrap();
                 stream
-                    .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
+                    .write_all("HTTP/1.1 201 Created\r\n\r\n".as_bytes())
                     .await
                     .expect("Couldn't write bytes!");
             }
